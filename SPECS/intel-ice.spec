@@ -25,6 +25,7 @@ Source0: https://code.citrite.net/rest/archive/latest/projects/XS/repos/driver-i
 Provides: gitsha(https://code.citrite.net/rest/archive/latest/projects/XS/repos/driver-intel-ice/archive?at=1.6.4&format=tgz&prefix=driver-intel-ice-1.6.4#/intel-ice-1.6.4.tar.gz) = f3b92b1169dafaea470f29442e1d17f593b6ecc0
 
 
+BuildRequires: gcc
 BuildRequires: kernel-devel
 Provides: vendor-driver
 Requires: kernel-uname-r = %{kernel_version}
