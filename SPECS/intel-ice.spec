@@ -1,8 +1,8 @@
-%global package_speccommit abb1ab79988b243b71d082603c02017233219f5d
-%global usver 1.6.4
-%global xsver 4
+%global package_speccommit ca6e81c3c7afd1039c80d147badc3a09cd6b1f22
+%global usver 1.11.17.1
+%global xsver 1
 %global xsrel %{xsver}%{?xscount}%{?xshash}
-%global package_srccommit 1.6.4
+%global package_srccommit 1.11.17.1
 %define vendor_name Intel
 %define vendor_label intel
 %define driver_name ice
@@ -20,16 +20,17 @@
 
 Summary: %{vendor_name} %{driver_name} device drivers
 Name: %{vendor_label}-%{driver_name}
-Version: 1.6.4
+Version: 1.11.17.1
 Release: %{?xsrel}%{?dist}
 License: GPLv2
-Source0: intel-ice-1.6.4.tar.gz
+Source0: intel-ice-1.11.17.1.tar.gz
 
 BuildRequires: gcc
-BuildRequires: kernel-devel
+BuildRequires: kernel-devel >= 4.19.19-8.0.29
 %{?_cov_buildrequires}
 Provides: vendor-driver
 Requires: kernel-uname-r = %{kernel_version}
+Requires: kernel >= 4.19.19-8.0.29
 Requires(post): /usr/sbin/depmod
 Requires(postun): /usr/sbin/depmod
 
@@ -75,6 +76,9 @@ install -m 644 $(pwd)/ddp/%{driver_name}-*.pkg ${DDP_PKG_DEST_PATH}
 %{?_cov_results_package}
 
 %changelog
+* Thu Jul 31 2023 Stephen Cheng <stephen.cheng@citrix.com> - 1.11.17.1-1
+- CP-41018: Update ice driver to 1.11.17.1; use auxiliary.ko in kernel
+
 * Thu Feb 24 2022 Ross Lagerwall <ross.lagerwall@citrix.com> - 1.6.4-4
 - CP-38416: Enable static analysis
 
