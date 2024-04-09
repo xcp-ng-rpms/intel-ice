@@ -1,6 +1,6 @@
-%global package_speccommit ca6e81c3c7afd1039c80d147badc3a09cd6b1f22
+%global package_speccommit 023d3f40d725acb42cf9fc18674a78388145364d
 %global usver 1.11.17.1
-%global xsver 1
+%global xsver 2
 %global xsrel %{xsver}%{?xscount}%{?xshash}
 %global package_srccommit 1.11.17.1
 %define vendor_name Intel
@@ -24,6 +24,7 @@ Version: 1.11.17.1
 Release: %{?xsrel}%{?dist}
 License: GPLv2
 Source0: intel-ice-1.11.17.1.tar.gz
+Patch0: fix-enabling-sr-iov-with-xen.patch
 
 BuildRequires: gcc
 BuildRequires: kernel-devel >= 4.19.19-8.0.29
@@ -76,7 +77,10 @@ install -m 644 $(pwd)/ddp/%{driver_name}-*.pkg ${DDP_PKG_DEST_PATH}
 %{?_cov_results_package}
 
 %changelog
-* Thu Jul 31 2023 Stephen Cheng <stephen.cheng@citrix.com> - 1.11.17.1-1
+* Fri Feb 02 2024 Ross Lagerwall <ross.lagerwall@citrix.com> - 1.11.17.1-2
+- CA-386575: Fix enabling SR-IOV with Xen
+
+* Mon Jul 31 2023 Stephen Cheng <stephen.cheng@citrix.com> - 1.11.17.1-1
 - CP-41018: Update ice driver to 1.11.17.1; use auxiliary.ko in kernel
 
 * Thu Feb 24 2022 Ross Lagerwall <ross.lagerwall@citrix.com> - 1.6.4-4
