@@ -1,8 +1,8 @@
-%global package_speccommit 023d3f40d725acb42cf9fc18674a78388145364d
-%global usver 1.11.17.1
+%global package_speccommit 012ac13737657c4bfcef15d0300ed95a5cfd1459
+%global usver 1.15.5
 %global xsver 2
 %global xsrel %{xsver}%{?xscount}%{?xshash}
-%global package_srccommit 1.11.17.1
+%global package_srccommit 1.15.5
 %define vendor_name Intel
 %define vendor_label intel
 %define driver_name ice
@@ -20,10 +20,10 @@
 
 Summary: %{vendor_name} %{driver_name} device drivers
 Name: %{vendor_label}-%{driver_name}
-Version: 1.11.17.1
+Version: 1.15.5
 Release: %{?xsrel}%{?dist}
 License: GPLv2
-Source0: intel-ice-1.11.17.1.tar.gz
+Source0: intel-ice-1.15.5.tar.gz
 Patch0: fix-enabling-sr-iov-with-xen.patch
 
 BuildRequires: gcc
@@ -77,6 +77,9 @@ install -m 644 $(pwd)/ddp/%{driver_name}-*.pkg ${DDP_PKG_DEST_PATH}
 %{?_cov_results_package}
 
 %changelog
+* Wed Dec 25 2024 Stephen Cheng <stephen.cheng@cloud.com> - 1.15.5-2
+- CP-52967: (XS8) Update ice driver to v1.15.5
+
 * Fri Feb 02 2024 Ross Lagerwall <ross.lagerwall@citrix.com> - 1.11.17.1-2
 - CA-386575: Fix enabling SR-IOV with Xen
 
