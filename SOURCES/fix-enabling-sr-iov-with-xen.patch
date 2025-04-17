@@ -1,4 +1,7 @@
-Fix enabling SR-IOV with Xen
+From a70db199883f82a38ebc5b7773c38fc5e1d16106 Mon Sep 17 00:00:00 2001
+From: Stephen Cheng <stephen.cheng@cloud.com>
+Date: Wed, 25 Dec 2024 04:59:24 +0000
+Subject: [PATCH] Fix enabling SR-IOV with Xen
 
 When the PCI functions are created, Xen is informed about them and caches the
 number of MSI-X entries each function has. However, the number of MSI-X entries
@@ -10,69 +13,55 @@ Fix this by moving the call to pci_enable_sriov() later so that the number of
 MSI-X entries is set correctly in hardware by the time Xen reads it.
 
 Signed-off-by: Ross Lagerwall <ross.lagerwall@citrix.com>
+---
+ src/ice_sriov.c | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
+
 diff --git a/src/ice_sriov.c b/src/ice_sriov.c
-index d39bbd51b6ec..e746f56698ce 100644
+index 5863c8d..37ed298 100644
 --- a/src/ice_sriov.c
 +++ b/src/ice_sriov.c
-@@ -1133,10 +1133,6 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
- 	set_bit(ICE_OICR_INTR_DIS, pf->state);
- 	ice_flush(hw);
- 
--	ret = pci_enable_sriov(pf->pdev, num_vfs);
--	if (ret)
--		goto err_unroll_intr;
--
- 	mutex_lock(&pf->vfs.table_lock);
- 
- 	ice_dcf_init_sw_rule_mgmt(pf);
-@@ -1145,14 +1141,14 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
- 	if (ret) {
- 		dev_err(dev, "Not enough resources for %d VFs, err %d. Try with fewer number of VFs\n",
- 			num_vfs, ret);
--		goto err_unroll_sriov;
-+		goto err_unroll_intr;
+@@ -1035,17 +1035,11 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
+ 		goto err_unroll_tracker;
  	}
  
+-	ret = pci_enable_sriov(pf->pdev, num_vfs);
+-	if (ret) {
+-		dev_err(dev, "Cannot enable SRIO-V, err %d\n", ret);
+-		goto err_unroll_tracker;
+-	}
+-
  	ret = ice_create_vf_entries(pf, num_vfs);
  	if (ret) {
  		dev_err(dev, "Failed to allocate VF entries for %d VFs\n",
  			num_vfs);
 -		goto err_unroll_sriov;
-+		goto err_unroll_intr;
++		goto err_unroll_tracker;
  	}
  
  	ret = ice_start_vfs(pf);
-@@ -1162,12 +1158,16 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
+@@ -1055,6 +1049,12 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
  		goto err_unroll_vf_entries;
  	}
  
 +	ret = pci_enable_sriov(pf->pdev, num_vfs);
-+	if (ret)
++	if (ret) {
++		dev_err(dev, "Cannot enable SRIO-V, err %d\n", ret);
 +		goto err_unroll_vf_entries;
++	}
 +
  	clear_bit(ICE_VF_DIS, pf->state);
  
- 	ret = ice_eswitch_configure(pf);
- 	if (ret) {
- 		dev_err(dev, "Failed to configure eswitch, err %d\n", ret);
--		goto err_unroll_vf_entries;
-+		goto err_unroll_sriov;
- 	}
- 
  	/* rearm global interrupts */
-@@ -1178,12 +1178,12 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
+@@ -1067,8 +1067,6 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
  
- 	return 0;
- 
--err_unroll_vf_entries:
--	ice_free_vf_entries(pf);
- err_unroll_sriov:
--	mutex_unlock(&pf->vfs.table_lock);
- 	pci_disable_sriov(pf->pdev);
-+err_unroll_vf_entries:
-+	ice_free_vf_entries(pf);
- err_unroll_intr:
-+	mutex_unlock(&pf->vfs.table_lock);
- 	/* rearm interrupts here */
- 	ice_irq_dynamic_ena(hw, NULL, NULL);
- 	clear_bit(ICE_OICR_INTR_DIS, pf->state);
+ err_unroll_vf_entries:
+ 	ice_free_vf_entries(pf);
+-err_unroll_sriov:
+-	pci_disable_sriov(pf->pdev);
+ err_unroll_tracker:
+ 	mutex_unlock(&pf->vfs.table_lock);
+ 	kfree(pf->vf_irq_tracker);
+-- 
+2.47.0
+
