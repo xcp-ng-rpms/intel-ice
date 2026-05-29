@@ -1,8 +1,8 @@
-%global package_speccommit 012ac13737657c4bfcef15d0300ed95a5cfd1459
-%global usver 1.15.5
-%global xsver 2
+%global package_speccommit 7a24b6cecf36042368f3fdc227113058b56479ab
+%global usver 2.4.5
+%global xsver 8.1
 %global xsrel %{xsver}%{?xscount}%{?xshash}
-%global package_srccommit 1.15.5
+%global package_srccommit 2.4.5
 %define vendor_name Intel
 %define vendor_label intel
 %define driver_name ice
@@ -20,11 +20,12 @@
 
 Summary: %{vendor_name} %{driver_name} device drivers
 Name: %{vendor_label}-%{driver_name}
-Version: 1.15.5
-Release: %{?xsrel}%{?dist}
+Version: 2.4.5
+Release: %{?xsrel}.1%{?dist}
 License: GPLv2
-Source0: intel-ice-1.15.5.tar.gz
+Source0: intel-ice-2.4.5.tar.gz
 Patch0: fix-enabling-sr-iov-with-xen.patch
+Patch1: 0001-kcompat-fix-xarray-include-order-and-module_init-for.patch
 
 BuildRequires: gcc
 BuildRequires: kernel-devel >= 4.19.19-8.0.29
@@ -77,6 +78,14 @@ install -m 644 $(pwd)/ddp/%{driver_name}-*.pkg ${DDP_PKG_DEST_PATH}
 %{?_cov_results_package}
 
 %changelog
+* Fri May 29 2026 Quentin Casasnovas <quentin.casasnovas@vates.tech> - 2.4.5-8.1.1
+- Sync with 2.4.5-8.1.1
+- *** Upstream changelog***
+  * Fri Apr 10 2026 Stephen Cheng <stephen.cheng@citrix.com> - 2.4.5-8.1
+  - CP-312064: Update to version 2.4.5
+  * Mon Jul 28 2025 Stephen Cheng <stephen.cheng@cloud.com> - 1.17.2-1
+  - CP-308119: (XS8) Update driver to v1.17.2
+
 * Wed Dec 25 2024 Stephen Cheng <stephen.cheng@cloud.com> - 1.15.5-2
 - CP-52967: (XS8) Update ice driver to v1.15.5
 

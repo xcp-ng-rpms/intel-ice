@@ -1,0 +1,77 @@
+From 5c3912dee152df9798feefc875608d935ddb9df5 Mon Sep 17 00:00:00 2001
+From: Stephen Cheng <stephen.cheng@citrix.com>
+Date: Fri, 10 Apr 2026 02:34:26 +0800
+Subject: [PATCH] kcompat: fix xarray include order and module_init for older
+ kernels
+
+Move kcompat_xarray.h include before kcompat_gcc.h and kcompat_cleanup.h.
+Those headers include kernel headers (e.g. linux/pci.h, linux/slab.h) that
+can transitively pull in the real linux/xarray.h on certain distro kernels.
+When that happens, the _LINUX_XARRAY_H include guard prevents the compat
+kcompat_xarray.h from declaring kc_xarray_global_init(), causing an
+implicit function declaration error.
+
+Also fix the orig_module_init macro which uses __copy() and ___ADDRESSABLE() 
+that do not exist on older kernels. Replace with the classic module_init 
+alias expansion. Drop the dead #ifdef HAVE_XARRAY_API inside 
+kc_module_init_impl() since the outer guard already ensures it is not defined.
+
+Signed-off-by: Ross Lagerwall <ross.lagerwall@citrix.com>
+Signed-off-by: Stephen Cheng <stephen.cheng@citrix.com>
+---
+ src/kcompat.h | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/kcompat.h b/src/kcompat.h
+index 8e9df39..c2cd5ef 100644
+--- a/src/kcompat.h
++++ b/src/kcompat.h
+@@ -44,15 +44,16 @@
+  */
+ #include "kcompat_generated_defs.h"
+ #include "kcompat_overflow.h"
+-#include "kcompat_gcc.h"
+-/* end of must-be-really-first headers */
+-
+-#include "kcompat_cleanup.h"
+ 
+ #ifndef HAVE_XARRAY_API
+ #include "kcompat_xarray.h"
+ #endif /* !HAVE_XARRAY_API */
+ 
++#include "kcompat_gcc.h"
++/* end of must-be-really-first headers */
++
++#include "kcompat_cleanup.h"
++
+ #include <linux/module.h>
+ 
+ /* any of the features that need to alter module_init */
+@@ -60,11 +61,7 @@
+ 
+ static int __init kc_module_init_impl(void)
+ {
+-#ifdef HAVE_XARRAY_API
+-#else
+-	kc_xarray_global_init()
+-#endif
+-;
++	kc_xarray_global_init();
+ 	return 0;
+ }
+ 
+@@ -72,9 +69,8 @@ static int __init kc_module_init_impl(void)
+ #define orig_module_init(initfn)	\
+ 	static inline initcall_t __maybe_unused __inittest(void)\
+ 	{ return initfn; }					\
+-	int init_module(void) __copy(initfn)			\
+-		__attribute__((alias(#initfn)));		\
+-	___ADDRESSABLE(init_module, __initdata);
++	int init_module(void)					\
++		__attribute__((alias(#initfn)));
+ 
+ #define module_init(driver_init_fn)			\
+ static int __init kc_module_init_fn(void)		\
+-- 
+2.48.1
+
