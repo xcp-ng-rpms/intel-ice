@@ -1,6 +1,6 @@
-From a70db199883f82a38ebc5b7773c38fc5e1d16106 Mon Sep 17 00:00:00 2001
-From: Stephen Cheng <stephen.cheng@cloud.com>
-Date: Wed, 25 Dec 2024 04:59:24 +0000
+From 9a0eee84d1f7d8c05d0bdddf0dd6333d580656ec Mon Sep 17 00:00:00 2001
+From: Ross Lagerwall <ross.lagerwall@citrix.com>
+Date: Tue, 14 Apr 2026 16:02:46 +0800
 Subject: [PATCH] Fix enabling SR-IOV with Xen
 
 When the PCI functions are created, Xen is informed about them and caches the
@@ -12,16 +12,114 @@ MSI-X interrupts to domains because it thinks the MSI-X interrupts don't exist.
 Fix this by moving the call to pci_enable_sriov() later so that the number of
 MSI-X entries is set correctly in hardware by the time Xen reads it.
 
+Additionally, move the pci_get_device() VF device lookup and ice_init_vf_sysfs()
+call out of ice_create_vf_entries() into a new ice_setup_vf_sysfs() function
+that runs after pci_enable_sriov(). These require VF PCI devices to exist on the
+bus, which conflicts with the deferred pci_enable_sriov() call. Splitting them
+out preserves the sysfs functionality while resolving the ordering dependency.
+
 Signed-off-by: Ross Lagerwall <ross.lagerwall@citrix.com>
+Signed-off-by: Stephen Cheng <stephen.cheng@citrix.com>
 ---
- src/ice_sriov.c | 16 +++++++---------
- 1 file changed, 7 insertions(+), 9 deletions(-)
+ src/ice_sriov.c | 83 +++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 56 insertions(+), 27 deletions(-)
 
 diff --git a/src/ice_sriov.c b/src/ice_sriov.c
-index 5863c8d..37ed298 100644
+index 0f5d57b..4c1686b 100644
 --- a/src/ice_sriov.c
 +++ b/src/ice_sriov.c
-@@ -1035,17 +1035,11 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
+@@ -945,20 +945,13 @@ static const struct ice_vf_ops ice_sriov_vf_ops = {
+  */
+ static int ice_create_vf_entries(struct ice_pf *pf, u16 num_vfs)
+ {
+-	struct pci_dev *pdev = pf->pdev;
+ 	struct ice_vfs *vfs = &pf->vfs;
+-	struct pci_dev *vfdev = NULL;
+ 	struct ice_vf *vf;
+-	u16 vf_pci_dev_id;
+ 	u16 vf_id;
+ 	int err;
+-	int pos;
+ 
+ 	lockdep_assert_held(&vfs->table_lock);
+ 
+-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+-	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_DID, &vf_pci_dev_id);
+-
+ 	for (vf_id = 0; vf_id < num_vfs; vf_id++) {
+ 		vf = kzalloc(sizeof(*vf), GFP_KERNEL);
+ 		if (!vf) {
+@@ -974,15 +967,6 @@ static int ice_create_vf_entries(struct ice_pf *pf, u16 num_vfs)
+ 		vf->vf_ops = &ice_sriov_vf_ops;
+ 
+ 		ice_initialize_vf_entry(vf);
+-		do {
+-			vfdev = pci_get_device(pdev->vendor, vf_pci_dev_id,
+-					       vfdev);
+-		} while (vfdev && vfdev->physfn != pdev);
+-		vf->vfdev = vfdev;
+-
+-		err = ice_init_vf_sysfs(vf);
+-		if (err)
+-			goto err_free_entries;
+ 
+ 		vf->vf_sw_id = pf->first_sw;
+ 
+@@ -991,12 +975,51 @@ static int ice_create_vf_entries(struct ice_pf *pf, u16 num_vfs)
+ 	return 0;
+ 
+ err_free_entries:
+-	kfree(vf);
+-	pci_dev_put(vfdev);
+ 	ice_free_vf_entries(pf);
+ 	return err;
+ }
+ 
++/**
++ * ice_setup_vf_sysfs - Associate VF entries with their PCI devices and init sysfs
++ * @pf: pointer to the PF structure
++ *
++ * This must be called after pci_enable_sriov() so that VF PCI devices exist
++ * on the bus. It looks up each VF's PCI device and creates sysfs entries.
++ *
++ * Returns 0 on success or an integer error code on failure.
++ */
++static int ice_setup_vf_sysfs(struct ice_pf *pf)
++{
++	struct pci_dev *pdev = pf->pdev;
++	struct pci_dev *vfdev = NULL;
++	u16 vf_pci_dev_id;
++	unsigned int bkt;
++	struct ice_vf *vf;
++	int pos, err;
++
++	lockdep_assert_held(&pf->vfs.table_lock);
++
++	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
++	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_DID, &vf_pci_dev_id);
++
++	ice_for_each_vf(pf, bkt, vf) {
++		do {
++			vfdev = pci_get_device(pdev->vendor, vf_pci_dev_id,
++					       vfdev);
++		} while (vfdev && vfdev->physfn != pdev);
++		vf->vfdev = vfdev;
++
++		err = ice_init_vf_sysfs(vf);
++		if (err) {
++			pci_dev_put(vfdev);
++			vf->vfdev = NULL;
++			return err;
++		}
++	}
++
++	return 0;
++}
++
+ /**
+  * ice_ena_vfs - enable VFs so they are ready to be used
+  * @pf: pointer to the PF structure
+@@ -1031,17 +1054,11 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
  		goto err_unroll_tracker;
  	}
  
@@ -40,7 +138,7 @@ index 5863c8d..37ed298 100644
  	}
  
  	ret = ice_start_vfs(pf);
-@@ -1055,6 +1049,12 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
+@@ -1051,6 +1068,18 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
  		goto err_unroll_vf_entries;
  	}
  
@@ -50,18 +148,28 @@ index 5863c8d..37ed298 100644
 +		goto err_unroll_vf_entries;
 +	}
 +
++	ret = ice_setup_vf_sysfs(pf);
++	if (ret) {
++		dev_err(dev, "Failed to setup VF sysfs for %d VFs\n", num_vfs);
++		goto err_unroll_sriov;
++	}
++
  	clear_bit(ICE_VF_DIS, pf->state);
  
  	/* rearm global interrupts */
-@@ -1067,8 +1067,6 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
+@@ -1061,10 +1090,10 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
  
- err_unroll_vf_entries:
- 	ice_free_vf_entries(pf);
--err_unroll_sriov:
--	pci_disable_sriov(pf->pdev);
+ 	return 0;
+ 
+-err_unroll_vf_entries:
+-	ice_free_vf_entries(pf);
+ err_unroll_sriov:
+ 	pci_disable_sriov(pf->pdev);
++err_unroll_vf_entries:
++	ice_free_vf_entries(pf);
  err_unroll_tracker:
  	mutex_unlock(&pf->vfs.table_lock);
  	kfree(pf->vf_irq_tracker);
 -- 
-2.47.0
+2.48.1
 
