@@ -27,6 +27,8 @@ Source0: intel-ice-2.4.5.tar.gz
 Patch0: fix-enabling-sr-iov-with-xen.patch
 Patch1: 0001-kcompat-fix-xarray-include-order-and-module_init-for.patch
 
+Patch1000: 0001-intel-ice-compat-handle-newer-kernels-with-dd_key_in.patch
+
 BuildRequires: gcc
 BuildRequires: kernel-devel >= 4.19.19-8.0.29
 %{?_cov_buildrequires}
