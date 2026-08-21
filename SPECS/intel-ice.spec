@@ -21,7 +21,10 @@
 Summary: %{vendor_name} %{driver_name} device drivers
 Name: %{vendor_label}-%{driver_name}
 Version: 2.4.5
-Release: %{?xsrel}.1%{?dist}
+Release: %{?xsrel}.2%{?dist}
+# Built against new kABI after cip rebase
+Requires: xcpng-kernel-kabi = 4.19.325-cip134+
+
 License: GPLv2
 Source0: intel-ice-2.4.5.tar.gz
 Patch0: fix-enabling-sr-iov-with-xen.patch
@@ -80,6 +83,9 @@ install -m 644 $(pwd)/ddp/%{driver_name}-*.pkg ${DDP_PKG_DEST_PATH}
 %{?_cov_results_package}
 
 %changelog
+* Mon Aug 31 2026 Quentin Casasnovas <quentin.casasnovas@vates.tech> - 2.4.5-8.1.2
+- Rebuild for kernel v4.19.325-cip134
+
 * Fri May 29 2026 Quentin Casasnovas <quentin.casasnovas@vates.tech> - 2.4.5-8.1.1
 - Sync with 2.4.5-8.1.1
 - *** Upstream changelog***
