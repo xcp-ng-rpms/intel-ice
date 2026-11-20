@@ -21,7 +21,7 @@
 Summary: %{vendor_name} %{driver_name} device drivers
 Name: %{vendor_label}-%{driver_name}
 Version: 2.4.5
-Release: %{?xsrel}.1.0.kernelpreview.1%{?dist}
+Release: %{?xsrel}.1.0.kernelpreview.1.0.testv0.1%{?dist}
 License: GPLv2
 Source0: intel-ice-2.4.5.tar.gz
 Patch0: fix-enabling-sr-iov-with-xen.patch
