@@ -21,14 +21,16 @@
 Summary: %{vendor_name} %{driver_name} device drivers
 Name: %{vendor_label}-%{driver_name}
 Version: 2.4.5
-Release: %{?xsrel}.1%{?dist}
+Release: %{?xsrel}.1.0.kernelpreview.1%{?dist}
 License: GPLv2
 Source0: intel-ice-2.4.5.tar.gz
 Patch0: fix-enabling-sr-iov-with-xen.patch
 Patch1: 0001-kcompat-fix-xarray-include-order-and-module_init-for.patch
 
+Patch1000: intel-ice-compat-handle-newer-kernels-with-dd_key_in.patch
+
 BuildRequires: gcc
-BuildRequires: kernel-devel >= 4.19.19-8.0.29
+BuildRequires: kernel-devel >= 4.19.325-cip137.8.0.46.16
 %{?_cov_buildrequires}
 Provides: vendor-driver
 Requires: kernel-uname-r = %{kernel_version}
@@ -78,6 +80,9 @@ install -m 644 $(pwd)/ddp/%{driver_name}-*.pkg ${DDP_PKG_DEST_PATH}
 %{?_cov_results_package}
 
 %changelog
+* Mon Nov 16 2026 Quentin Casasnovas <quentin.casasnovas@vates.tech> - 2.4.5-8.1.1.0.kernelpreview.1
+- Rebuild for kernel v4.19.325-cip137
+
 * Fri May 29 2026 Quentin Casasnovas <quentin.casasnovas@vates.tech> - 2.4.5-8.1.1
 - Sync with 2.4.5-8.1.1
 - *** Upstream changelog***
